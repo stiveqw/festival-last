@@ -1,0 +1,22 @@
+{% extends "base.html" %}
+
+{% block title %}축제 메인 페이지{% endblock %}
+
+{% block hero %}
+<section class="hero">
+    <h1>Welcome to Our Festivals</h1>
+    <p>Discover amazing events and create unforgettable memories</p>
+</section>
+{% endblock %}
+
+{% block content %}
+<section class="festival-list">
+    <h2>Festival List</h2>
+    <div class="grid" id="festival-list">
+        <!-- Festival items will be dynamically inserted here -->
+    </div>
+    <div class="pagination" id="pagination">
+        <!-- Pagination buttons will be dynamically inserted here -->
+    </div>
+</section>
+{% endblock %}

@@ -1,125 +1,102 @@
 document.addEventListener('DOMContentLoaded', function() {
     const seatGrid = document.getElementById('seatGrid');
     const applyButton = document.getElementById('applyButton');
-    const seatInfo = document.getElementById('seatInfo');
     let selectedSeat = null;
-    let totalSeats = 0;
-    let occupiedSeats = 0;
 
-    function updateSeatInfo() {
-        seatInfo.textContent = `(예약됨: ${occupiedSeats} / 전체: ${totalSeats})`;
+    // Get the token from the URL
+    const urlParams = new URLSearchParams(window.location.search);
+    const token = urlParams.get('token');
+
+    // Store the token in localStorage
+    if (token) {
+        localStorage.setItem('access_token', token);
     }
 
-    function createSeats(seatCount) {
-        totalSeats = seatCount;
+    function loadFestivalInfo() {
+        fetch(`/api/festival/${festivalId}`, {
+            method: 'GET',
+            headers: {
+                'Authorization': `Bearer ${localStorage.getItem('access_token')}`
+            }
+        })
+        .then(response => {
+            if (!response.ok) {
+                throw new Error('Network response was not ok');
+            }
+            return response.json();
+        })
+        .then(data => {
+            document.getElementById('festivalTitle').textContent = data.title;
+            document.getElementById('festivalDescription').textContent = data.description;
+            document.getElementById('festivalDate').textContent = new Date(data.date).toLocaleString();
+            document.getElementById('festivalCapacity').textContent = data.capacity;
+            createSeatGrid(data.total_seats, data.reserved_seats);
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            alert('축제 정보를 불러오는 데 실패했습니다. 다시 시도해 주세요.');
+        });
+    }
+
+    function createSeatGrid(totalSeats, reservedSeats) {
         seatGrid.innerHTML = '';
-        for (let i = 1; i <= seatCount; i++) {
-            const seat = document.createElement('button');
-            seat.classList.add('seat');
-            seat.dataset.seatNumber = i;
+        for (let i = 1; i <= totalSeats; i++) {
+            const seat = document.createElement('div');
+            seat.className = 'seat';
             seat.textContent = i;
-            seat.addEventListener('click', toggleSeat);
+            if (reservedSeats.includes(i)) {
+                seat.classList.add('occupied');
+            } else {
+                seat.addEventListener('click', () => selectSeat(seat, i));
+            }
             seatGrid.appendChild(seat);
         }
-        fetchReservedSeats();
     }
 
-    function fetchReservedSeats() {
-        // URL에서 festival_id 가져오기
-        const pathParts = window.location.pathname.split('/');
-        const festivalId = pathParts[pathParts.length - 1]; // URL 경로에서 festival_id 추출
-
-        fetch(`/api/reserved-seats/${festivalId}`)
-            .then(response => response.json())
-            .then(data => {
-                occupiedSeats = data.reserved_seats.length;
-                data.reserved_seats.forEach(seatNumber => {
-                    const seat = document.querySelector(`.seat[data-seat-number="${seatNumber}"]`);
-                    if (seat) {
-                        seat.classList.add('occupied');
-                        seat.disabled = true;
-                    }
-                });
-                updateSeatInfo();
-            })
-            .catch(error => {
-                console.error('Error fetching reserved seats:', error);
-            });
-    }
-
-    function toggleSeat(event) {
-        const seat = event.target;
-        if (seat.classList.contains('occupied')) return;
-
+    function selectSeat(seatElement, seatNumber) {
         if (selectedSeat) {
             selectedSeat.classList.remove('selected');
         }
-
-        if (selectedSeat !== seat) {
-            seat.classList.add('selected');
-            selectedSeat = seat;
-            applyButton.disabled = false;
-        } else {
-            selectedSeat = null;
-            applyButton.disabled = true;
-        }
+        seatElement.classList.add('selected');
+        selectedSeat = seatElement;
+        applyButton.disabled = false;
+        document.getElementById('seatInfo').textContent = `선택된 좌석: ${seatNumber}`;
     }
 
     applyButton.addEventListener('click', function() {
-        if (selectedSeat) {
-            const pathParts = window.location.pathname.split('/');
-            const festivalId = pathParts[pathParts.length - 1]; // URL 경로에서 festival_id 추출
+        if (!selectedSeat) return;
 
-            fetch('/api/apply', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify({
-                    festival_id: festivalId,
-                    seat_number: parseInt(selectedSeat.dataset.seatNumber)
-                }),
-            })
-            .then(response => response.json())
-            .then(data => {
-                if (data.success) {
-                    alert('신청이 완료되었습니다!');
-                    selectedSeat.classList.add('occupied');
-                    selectedSeat.disabled = true;
-                    selectedSeat.classList.remove('selected');
-                    selectedSeat = null;
-                    applyButton.disabled = true;
-                    occupiedSeats++;
-                    updateSeatInfo();
-                    // 홈으로 이동하는 a 태그를 생성하고 클릭
-                    const homeLink = document.createElement('a');
-                    homeLink.href = '/';
-                    homeLink.style.display = 'none';
-                    document.body.appendChild(homeLink);
-                    homeLink.click();
-                    document.body.removeChild(homeLink);
-                } else {
-                    alert('신청 중 오류가 발생했습니다. 다시 시도해주세요.');
-                }
-            })
-            .catch(error => {
-                console.error('Error submitting application:', error);
-                alert('신청 중 오류가 발생했습니다. 다시 시도해주세요.');
-            });
-        }
-    });
-
-    // 초기 좌석 수 가져오기
-    const pathParts = window.location.pathname.split('/');
-    const festivalId = pathParts[pathParts.length - 1]; // URL 경로에서 festival_id 추출
-
-    fetch(`/api/seat-count/${festivalId}`)
+        const seatNumber = parseInt(selectedSeat.textContent);
+        fetch('/api/apply', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${localStorage.getItem('access_token')}`
+            },
+            body: JSON.stringify({
+                festival_id: festivalId,
+                seat_number: seatNumber
+            }),
+        })
         .then(response => response.json())
         .then(data => {
-            createSeats(data.seat_count);
+            if (data.success) {
+                alert('신청이 성공적으로 완료되었습니다!');
+                selectedSeat.classList.add('occupied');
+                selectedSeat.classList.remove('selected');
+                selectedSeat = null;
+                applyButton.disabled = true;
+                document.getElementById('seatInfo').textContent = '';
+            } else {
+                alert(data.message);
+            }
         })
-        .catch(error => {
-            console.error('Error fetching seat count:', error);
+        .catch((error) => {
+            console.error('Error:', error);
+            alert('신청 중 오류가 발생했습니다. 다시 시도해 주세요.');
         });
+    });
+
+    loadFestivalInfo();
 });
 

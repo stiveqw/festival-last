@@ -12,9 +12,11 @@
     <h2>Festival Application</h2>
     <div class="grid">
         <div class="festival-info">
-            <img src="{{ url_for('static', filename='images/' + festival.image) }}" alt="{{ festival.title }}">
-            <h3>{{ festival.title }}</h3>
-            <p>{{ festival.description }}</p>
+            <img src="{{ url_for('static', filename='images/festival_' ~ festival.id ~ '.jpg') }}" alt="{{ festival.title }}">
+            <h3 id="festivalTitle">{{ festival.title }}</h3>
+            <p id="festivalDescription">{{ festival.description }}</p>
+            <p>Date: <span id="festivalDate">{{ festival.date.strftime('%Y-%m-%d %H:%M') }}</span></p>
+            <p>Capacity: <span id="festivalCapacity">{{ festival.capacity }}</span></p>
         </div>
         <div class="seat-selection">
             <h3>좌석 선택 <span id="seatInfo" class="seat-info"></span></h3>
@@ -34,8 +36,7 @@
 {% block extra_js %}
 <script src="{{ url_for('static', filename='js/apply.js') }}"></script>
 <script>
-    // Pass festival ID to JavaScript
-    const festivalId = "{{ festival.id }}";
+    const festivalId = {{ festival.id }};
 </script>
 {% endblock %}
 
